@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>LPT 控制面板</title>
+</head>
+<body>
+  <h2>印表機控制面板</h2>
+
+  <label>選擇列印埠：</label>
+  <select id="portSelect">
+    <option value="LPT1">LPT1</option>
+    <option value="LPT2" selected>LPT2</option>
+  </select>
+  <br><br>
+
+  <label>輸入文字：</label><br>
+  <input id="textInput" type="text" size="40" value="一二三四五六七八九十一二三四五六七八九十"><br><br>
+
+  <button onclick="sendPrint()">列印一行文字</button>
+  <br><br>
+
+  <label>換行數：</label>
+  <input id="newlineCount" type="number" value="8" min="1" max="20" style="width: 50px;">
+  <button onclick="sendNewline()">插入換行</button>
+  <br><br>
+
+  <button onclick="sendCut()">裁切紙張</button>
+
+  <script>
+    const api = 'http://localhost:3000/command';
+
+    function getSelectedPort() {
+      return document.getElementById('portSelect').value;
+    }
+
+    function sendPrint() {
+      const text = document.getElementById('textInput').value;
+      if (!text.trim()) return alert('請輸入文字');
+      sendCommand({ type: 'printLine', text, port: getSelectedPort() });
+    }
+
+    function sendNewline() {
+      const count = parseInt(document.getElementById('newlineCount').value) || 1;
+      sendCommand({ type: 'newline', count, port: getSelectedPort() });
+    }
+
+    function sendCut() {
+      sendCommand({ type: 'cut', port: getSelectedPort() });
+    }
+
+    function sendCommand(body) {
+      fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(res => res.text())
+      .then(msg => console.log(msg))
+      .catch(err => alert('發生錯誤：' + err));
+    }
+  </script>
+</body>
+</html>
