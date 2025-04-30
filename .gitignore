@@ -1,18 +1,28 @@
 # Dependencies
 node_modules/
 
-# Runtime files
-temp_to_print.bin
-temp_to_print.txt
+# Environment
+.env
 
-# Logs
-*.log
-npm-debug.log*
+# Temporary files
+tmp/
+*.bin
+temp_to_print.*
 
 # IDE
 .vscode/
 .idea/
 
+# Logs
+*.log
+npm-debug.log*
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
+/tmp/
+*.bin
+
+.env

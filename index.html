@@ -3,35 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <title>LPT 控制面板</title>
+  <style>
+    .setting-group {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .setting-group button {
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
   <h2>印表機控制面板</h2>
 
-  <label>選擇列印埠：</label>
-  <select id="portSelect">
-    <option value="LPT1">LPT1</option>
-    <option value="LPT2" selected>LPT2</option>
-  </select>
-  <br><br>
+  <div class="setting-group">
+    <label>選擇列印埠：</label>
+    <select id="portSelect">
+      <option value="LPT1">LPT1</option>
+      <option value="LPT2">LPT2</option>
+    </select>
+    <button onclick="savePortSetting()">儲存預設列印埠</button>
+  </div>
 
-  <label>輸入文字：</label><br>
-  <input id="textInput" type="text" size="40" value="一二三四五六七八九十一二三四五六七八九十"><br><br>
+  <div class="setting-group">
+    <label>輸入文字：</label><br>
+    <input id="textInput" type="text" size="40" value="一二三四五六七八九十一二三四五六七八九十"><br><br>
+    <button onclick="sendPrint()">列印一行文字</button>
+  </div>
 
-  <button onclick="sendPrint()">列印一行文字</button>
-  <br><br>
+  <div class="setting-group">
+    <label>換行數：</label>
+    <input id="newlineCount" type="number" value="8" min="1" max="20" style="width: 50px;">
+    <button onclick="sendNewline()">插入換行</button>
+  </div>
 
-  <label>換行數：</label>
-  <input id="newlineCount" type="number" value="8" min="1" max="20" style="width: 50px;">
-  <button onclick="sendNewline()">插入換行</button>
-  <br><br>
-
-  <button onclick="sendCut()">裁切紙張</button>
+  <div class="setting-group">
+    <button onclick="sendCut()">裁切紙張</button>
+  </div>
 
   <script>
-    const api = 'http://localhost:3000/command';
+    const api = 'http://localhost:3000';
+
+    // 頁面載入時讀取設定
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const response = await fetch(`${api}/settings`);
+        const settings = await response.json();
+        if (settings.DEFAULT_PORT) {
+          document.getElementById('portSelect').value = settings.DEFAULT_PORT;
+        }
+      } catch (err) {
+        console.error('讀取設定失敗：', err);
+      }
+    });
 
     function getSelectedPort() {
       return document.getElementById('portSelect').value;
+    }
+
+    async function savePortSetting() {
+      const port = getSelectedPort();
+      try {
+        const response = await fetch(`${api}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ port })
+        });
+        const result = await response.text();
+        alert(result);
+      } catch (err) {
+        alert('儲存設定失敗：' + err);
+      }
     }
 
     function sendPrint() {
@@ -50,7 +94,7 @@
     }
 
     function sendCommand(body) {
-      fetch(api, {
+      fetch(`${api}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

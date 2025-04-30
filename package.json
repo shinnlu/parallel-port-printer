@@ -1,13 +1,22 @@
 {
-  "name": "lpt1-sender",
+  "name": "parallel-port-printer",
   "version": "1.0.0",
+  "description": "A Node.js application for controlling parallel port printers",
   "main": "server.js",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"node server.js\" \"node server-dev.js\"",
     "start": "node server.js"
   },
+  "keywords": [
+    "printer",
+    "lpt",
+    "parallel-port",
+    "nodejs"
+  ],
+  "author": "Shinn Lu",
   "dependencies": {
+    "dotenv": "^16.5.0",
     "express": "^4.18.2",
     "iconv-lite": "^0.6.3"
   },

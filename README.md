@@ -6,6 +6,24 @@
    - 下載地址：https://nssm.cc/download
    - 解壓縮後將 nssm32.exe 和 nssm64.exe 複製到專案目錄下的 nssm 資料夾中
 
+## 版本控制
+本專案使用 Git 進行版本控制。如果你要進行開發：
+
+1. 克隆倉庫：
+   ```bash
+   git clone <repository-url>
+   ```
+
+2. 安裝依賴：
+   ```bash
+   npm install
+   ```
+
+3. 開發時使用：
+   ```bash
+   npm run dev
+   ```
+
 ## 部署步驟
 1. 複製整個專案資料夾到目標電腦
 2. 在專案目錄中執行以下命令安裝依賴：
