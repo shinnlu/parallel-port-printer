@@ -1,5 +1,5 @@
 #define MyAppName "Parallel Port Printer"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "ParallelPort Printer"
 #define MyAppExeName "start-server.bat"
 
@@ -32,6 +32,7 @@ Source: "check-update.js"; DestDir: "{app}"; Flags: ignoreversion
 Source: "version.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-server.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "server-dev.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".env.example"; DestDir: "{app}"; Flags: ignoreversion
 Source: "install-service-x64.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "install-service-x86.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "nssm\*"; DestDir: "{app}\nssm"; Flags: ignoreversion recursesubdirs

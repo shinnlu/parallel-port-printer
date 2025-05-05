@@ -51,8 +51,8 @@
       try {
         const response = await fetch(`${api}/settings`);
         const settings = await response.json();
-        if (settings.DEFAULT_PORT) {
-          document.getElementById('portSelect').value = settings.DEFAULT_PORT;
+        if (settings.PRINTER_PORT) {
+          document.getElementById('portSelect').value = settings.PRINTER_PORT;
         }
       } catch (err) {
         console.error('讀取設定失敗：', err);

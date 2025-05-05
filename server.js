@@ -3,22 +3,23 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const iconv = require('iconv-lite');
+const updateChecker = require('./check-update');
 require('dotenv').config();
 
 const app = express();
-const PORT = 3000;
+const LISTEN_PORT = process.env.LISTEN_PORT || 3000;
 
 // Path for tmp directory
 const TMP_DIR = path.join(__dirname, 'tmp');
 
-// Ensure tmp directory exists
+// Ensure tmp directory exists with proper permissions
 if (!fs.existsSync(TMP_DIR)) {
-  fs.mkdirSync(TMP_DIR);
+  fs.mkdirSync(TMP_DIR, { mode: 0o755 });
 }
 
 // Function to get temporary filename
 const getTempFileName = () => {
-  return path.join(TMP_DIR, `print_${Date.now()}.bin`);
+  return path.join(TMP_DIR, `print_${Date.now()}_${Math.random().toString(36).substring(7)}.bin`);
 };
 
 // Function to clean up temporary files
@@ -42,6 +43,7 @@ const cleanupTempFiles = () => {
 // Clean up temporary files every hour
 setInterval(cleanupTempFiles, 3600000);
 
+// CORS configuration
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST');
@@ -52,24 +54,43 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.static(__dirname));
 
+/*app.use(express.json({ limit: '1mb' })); // 限制請求大小
+app.use(express.static(__dirname, {
+  dotfiles: 'ignore',
+  etag: true,
+  index: 'index.html',  // 指定預設檔案為 index.html
+  maxAge: '1h'
+}));*/
+
+// Input validation middleware
+const validatePort = (req, res, next) => {
+  const { port } = req.body;
+  if (!port || !['LPT1', 'LPT2'].includes(port)) {
+    return res.status(400).json({ error: 'Invalid printer port' });
+  }
+  next();
+};
+
+// API Routes
 // Read settings
 app.get('/settings', (req, res) => {
   res.json({
-    DEFAULT_PORT: process.env.DEFAULT_PORT || 'LPT1'
+    PRINTER_PORT: process.env.PRINTER_PORT || 'LPT1'
   });
 });
 
 // Save settings
-app.post('/settings', (req, res) => {
+app.post('/settings', validatePort, (req, res) => {
   const { port } = req.body;
-  if (!port || !['LPT1', 'LPT2'].includes(port)) {
-    return res.status(400).send('Invalid printer port');
+  const envContent = `PRINTER_PORT=${port}`;
+  try {
+    fs.writeFileSync('.env', envContent);
+    process.env.PRINTER_PORT = port;
+    res.json({ message: 'Settings saved successfully' });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
   }
-
-  const envContent = `DEFAULT_PORT=${port}`;
-  fs.writeFileSync('.env', envContent);
-  process.env.DEFAULT_PORT = port;
-  res.send('Settings saved');
 });
 
 // Handle AirControl Agent requests
@@ -77,26 +98,75 @@ app.post('/inform', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.post('/command', (req, res) => {
+// Command validation middleware
+const validateCommand = (req, res, next) => {
+  const { type, text, count, port } = req.body;
+
+  if (!type || !['printLine', 'newline', 'cut'].includes(type)) {
+    return res.status(400).json({ error: 'Invalid command type' });
+  }
+
+  if (type === 'printLine' && (!text || typeof text !== 'string' || text.length > 1000)) {
+    return res.status(400).json({ error: 'Invalid text content' });
+  }
+
+  if (type === 'newline' && (count && (isNaN(count) || count < 1 || count > 50))) {
+    return res.status(400).json({ error: 'Invalid line count' });
+  }
+
+  if (port && !['LPT1', 'LPT2'].includes(port)) {
+    return res.status(400).json({ error: 'Invalid port' });
+  }
+
+  next();
+};
+
+// 檢查印表機狀態
+function checkPrinterStatus(port) {
+  return new Promise((resolve) => {
+    const command = `mode ${port}`;
+    console.log(command);
+    exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
+      if (error) {
+        const errorMessage = iconv.decode(stderr, 'cp950');
+        console.error('Printer status check error:', errorMessage);
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+}
+
+app.post('/command', validateCommand, async (req, res) => {
   const { type, text, count, port } = req.body;
   const targetPort = (port === 'LPT2') ? 'LPT2' : 'LPT1';
   const tempFile = getTempFileName();
 
+  // 檢查印表機狀態
+  const isPrinterReady = await checkPrinterStatus(targetPort);
+  if (!isPrinterReady) {
+    return res.status(503).json({ error: 'Printer is not ready. Please check if the printer is turned on and connected.' });
+  }
+
   let buffer;
 
-  switch (type) {
-    case 'printLine':
-      buffer = iconv.encode(text + '\n', 'big5');
-      break;
-    case 'newline':
-      const n = Math.max(1, Math.min(parseInt(count) || 1, 50));
-      buffer = Buffer.from('\n'.repeat(n), 'utf8');
-      break;
-    case 'cut':
-      buffer = Buffer.from([0x1D, 0x56, 0x00]); // ESC/POS Full cut
-      break;
-    default:
-      return res.status(400).send('Unknown command type');
+  try {
+    switch (type) {
+      case 'printLine':
+        buffer = iconv.encode(text + '\n', 'big5');
+        break;
+      case 'newline':
+        const n = Math.max(1, Math.min(parseInt(count) || 1, 50));
+        buffer = Buffer.from('\n'.repeat(n), 'utf8');
+        break;
+      case 'cut':
+        buffer = Buffer.from([0x1D, 0x56, 0x00]); // ESC/POS Full cut
+        break;
+    }
+  } catch (error) {
+    console.error('Error preparing buffer:', error);
+    return res.status(500).json({ error: 'Failed to prepare print data' });
   }
 
   const maxRetries = 3;
@@ -104,7 +174,7 @@ app.post('/command', (req, res) => {
 
   const tryWriteFile = () => {
     try {
-      fs.writeFileSync(tempFile, buffer, { flag: 'w' });
+      fs.writeFileSync(tempFile, buffer, { flag: 'w', mode: 0o600 });
       return true;
     } catch (error) {
       console.error(`Write failed, attempt ${currentTry + 1}, error:`, error);
@@ -114,25 +184,43 @@ app.post('/command', (req, res) => {
 
   const tryWrite = () => {
     if (currentTry >= maxRetries) {
-      return res.status(500).send('Unable to write temporary file, please try again later');
+      return res.status(500).json({ error: 'Unable to write temporary file, please try again later' });
     }
 
     if (tryWriteFile()) {
       const command = `copy /B "${tempFile}" ${targetPort}`;
-      exec(command, (error, stdout, stderr) => {
+      console.log(command);
+
+      // 設置超時
+      const timeout = setTimeout(() => {
+        try {
+          if (fs.existsSync(tempFile)) {
+            fs.unlinkSync(tempFile);
+          }
+        } catch (e) {
+          console.error('Error cleaning up temp file on timeout:', e);
+        }
+        res.status(504).json({ error: 'Print command timed out. Please check printer connection.' });
+      }, 5000); // 5 秒超時
+
+      exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
+        clearTimeout(timeout);
         // Clean up temporary file
         try {
-          fs.unlinkSync(tempFile);
+          if (fs.existsSync(tempFile)) {
+            fs.unlinkSync(tempFile);
+          }
         } catch (e) {
           console.error('Unable to delete temporary file:', e);
         }
 
         if (error) {
-          console.error('Error message:', stderr);
-          return res.status(500).send('Transmission failed: Please check LPT Port settings');
+          const errorMessage = iconv.decode(stderr, 'cp950');
+          console.error('Error message:', errorMessage);
+          return res.status(500).json({ error: 'Transmission failed: Please check LPT Port settings' });
         }
 
-        res.send(`Sent to ${targetPort}, command type: ${type}`);
+        res.json({ message: `Sent to ${targetPort}, command type: ${type}` });
       });
     } else {
       currentTry++;
@@ -143,8 +231,21 @@ app.post('/command', (req, res) => {
   tryWrite();
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at: http://localhost:${PORT}`);
+// 確保所有其他路由都返回 index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+app.listen(LISTEN_PORT, () => {
+  console.log(`Server running at: http://localhost:${LISTEN_PORT}`);
   // Clean up old temporary files on startup
   cleanupTempFiles();
+  // Start update checker
+  updateChecker.startUpdateCheck();
 });
