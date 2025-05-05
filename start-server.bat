@@ -1,3 +1,4 @@
 @echo off
 cd /d %~dp0
-npm start
+node check-update.js
+node server.js

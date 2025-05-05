@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "changelog": "初始版本",
+  "downloadUrl": "https://github.com/你的用戶名/parallel-port-printer/releases/latest/download/ParallelPortPrinter-Setup.exe",
+  "autoUpdate": true
+}

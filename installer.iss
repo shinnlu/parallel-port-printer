@@ -1,0 +1,53 @@
+#define MyAppName "Parallel Port Printer"
+#define MyAppVersion "1.0.0"
+#define MyAppPublisher "ParallelPort Printer"
+#define MyAppExeName "start-server.bat"
+
+[Setup]
+AppId={{b2cbe8c3-a12e-4089-81bf-462bb71fa371}}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+OutputDir=installer
+OutputBaseFilename=ParallelPortPrinter-Setup
+Compression=lzma
+SolidCompression=yes
+WizardStyle=modern
+
+[Languages]
+Name: "tchineseb"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "startup"; Description: "開機時自動啟動"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Files]
+Source: "server.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "index.html"; DestDir: "{app}"; Flags: ignoreversion
+Source: "package.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "package-lock.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "check-update.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "version.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "start-server.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "server-dev.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "install-service-x64.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "install-service-x86.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "nssm\*"; DestDir: "{app}\nssm"; Flags: ignoreversion recursesubdirs
+Source: "node_modules\*"; DestDir: "{app}\node_modules"; Flags: ignoreversion recursesubdirs
+
+[Dirs]
+Name: "{app}\tmp"; Permissions: users-full
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{commonstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startup
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\tmp"
