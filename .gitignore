@@ -25,4 +25,7 @@ Thumbs.db
 /tmp/
 *.bin
 update-record.json
+
+# Installer
+build/
 installer/ParallelPortPrinter-Setup.exe

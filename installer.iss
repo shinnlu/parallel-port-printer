@@ -1,5 +1,5 @@
 #define MyAppName "Parallel Port Printer"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "ParallelPort Printer"
 #define MyAppExeName "start-server.bat"
 
@@ -10,7 +10,7 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-OutputDir=installer
+OutputDir=build/
 OutputBaseFilename=ParallelPortPrinter-Setup
 Compression=lzma
 SolidCompression=yes
