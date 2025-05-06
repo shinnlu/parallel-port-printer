@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "changelog": "新增印表機狀態檢查",
+  "version": "1.0.2",
+  "changelog": "自動下載新版",
   "downloadUrl": "https://github.com/shinnlu/parallel-port-printer/releases/latest/download/ParallelPortPrinter-Setup.exe",
   "autoUpdate": true
 }
