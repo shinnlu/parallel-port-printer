@@ -7,13 +7,13 @@ const GITHUB_REPO = 'shinnlu/parallel-port-printer';
 const CHECK_INTERVAL = 1000 * 60 * 60; // 每小時檢查一次
 const UPDATE_RECORD_FILE = path.join(__dirname, 'update-record.json');
 
-// 從 version.json 讀取當前版本號
+// 從 package.json 讀取當前版本號
 function getCurrentVersion() {
   try {
-    const versionData = JSON.parse(fs.readFileSync(path.join(__dirname, 'version.json'), 'utf8'));
-    return versionData.version;
+    const packageData = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    return packageData.version;
   } catch (error) {
-    console.error('Error reading version.json:', error);
+    console.error('Error reading package.json:', error);
     return '1.0.0'; // 如果讀取失敗，返回預設版本號
   }
 }

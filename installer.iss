@@ -1,5 +1,5 @@
 #define MyAppName "Parallel Port Printer"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.5"
 #define MyAppPublisher "ParallelPort Printer"
 #define MyAppExeName "start-server.bat"
 
