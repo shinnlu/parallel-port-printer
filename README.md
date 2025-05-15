@@ -11,6 +11,7 @@
 - 可設定預設印表機埠
 - 自動更新功能
 - Windows 服務安裝
+- 檢查印表機是否連線
 
 ## 系統需求
 - Windows 作業系統
@@ -115,3 +116,14 @@
 - 作者：Shinn Lu
 - 電子郵件：你的電子郵件
 - 專案連結：https://github.com/shinnlu/parallel-port-printer
+
+## API 說明
+
+應用程式提供以下 API 端點供前端與後端通訊：
+
+- `GET /settings`：取得目前的設定值，例如預設印表機埠。
+- `POST /settings`：更新設定值，需提供 JSON 格式的資料，例如 `{ "port": "LPT1" }`。
+- `POST /command`：發送列印指令，需提供 JSON 格式的資料，例如 `{ "type": "printLine", "text": "Hello", "port": "LPT1" }`。
+- `POST /printer-status`：檢查印表機狀態，回傳印表機的連線狀態與錯誤資訊。
+
+這些 API 端點可用於與應用程式進行互動，實現列印與狀態檢查等功能。

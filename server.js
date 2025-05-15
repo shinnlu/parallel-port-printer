@@ -128,6 +128,8 @@ function checkPrinterStatus(port) {
     console.log(command);
     exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
       if (error) {
+        console.error('Error querying printer status:', error);
+        console.error('Error output:', stderr);
         const errorMessage = iconv.decode(stderr, 'cp950');
         console.error('Printer status check error:', errorMessage);
         resolve(false);
@@ -229,6 +231,52 @@ app.post('/command', validateCommand, async (req, res) => {
   };
 
   tryWrite();
+});
+
+app.post('/printer-status', async (req, res) => {
+  const { port } = req.body;
+  const targetPort = port || process.env.PRINTER_PORT || 'LPT1';
+
+  const buffer = Buffer.from([0x1D, 0x28, 0x41]); // ESC ( A 指令
+  const tempFile = getTempFileName();
+
+  try {
+    fs.writeFileSync(tempFile, buffer, { flag: 'w', mode: 0o600 });
+    const command = `copy /B "${tempFile}" ${targetPort}`;
+    console.log(`Executing command: ${command}`);
+
+    exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
+      // Clean up temporary file
+      try {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      } catch (e) {
+        console.error('Unable to delete temporary file:', e);
+      }
+
+      if (error) {
+        // Handle error
+        // if error contains "Error: Command failed:" then it's printer not ready
+        if (error.message.includes('Command failed:')) {
+          console.error('Printer not ready or command failed:', error);
+          return res.status(503).json({ status: 'error', message: 'Printer not ready or command failed' });
+        }
+        //console.error('Error executing command:', error);
+        const errorMessage = iconv.decode(stderr, 'cp950');
+        console.error('Error querying printer status:', errorMessage);
+        return res.status(500).json({ status: 'error', message: errorMessage });
+      }else{
+        // const outputMessage = iconv.decode(stdout, 'cp950');
+        // console.log('Printer status output:', outputMessage);
+        // res.json({ status: 'success', message: outputMessage });
+        res.json({ status: 'success', message: 'Printer is ready' });
+      }
+    });
+  } catch (error) {
+    console.error('Error preparing printer status query:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to prepare printer status query' });
+  }
 });
 
 // 確保所有其他路由都返回 index.html

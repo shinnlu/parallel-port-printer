@@ -43,6 +43,10 @@
     <button onclick="sendCut()">裁切紙張</button>
   </div>
 
+  <div class="setting-group">
+    <button onclick="checkPrinterStatus()">檢查印表機狀態</button>
+  </div>
+
   <script>
     const api = 'http://localhost:3000';
 
@@ -91,6 +95,21 @@
 
     function sendCut() {
       sendCommand({ type: 'cut', port: getSelectedPort() });
+    }
+
+    async function checkPrinterStatus() {
+      try {
+        const port = getSelectedPort();
+        const response = await fetch(`${api}/printer-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ port })
+        });
+        const status = await response.json();
+        alert(`印表機狀態：${status.message}`);
+      } catch (err) {
+        alert('無法檢查印表機狀態：' + err);
+      }
     }
 
     function sendCommand(body) {

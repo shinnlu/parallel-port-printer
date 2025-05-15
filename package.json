@@ -1,11 +1,11 @@
 {
   "name": "parallel-port-printer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A Node.js application for controlling parallel port printers",
   "main": "server.js",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"node server.js\" \"node server-dev.js\"",
+    "dev": "concurrently \"nodemon server.js\" \"nodemon server-dev.js\"",
     "start": "node server.js"
   },
   "keywords": [
@@ -22,9 +22,20 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "http-proxy-middleware": "^2.0.6"
+    "http-proxy-middleware": "^2.0.6",
+    "nodemon": "^3.1.10"
   },
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "watch": [
+    "server.js",
+    "routes/",
+    "config/"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/"
+  ],
+  "exec": "node server.js"
 }
