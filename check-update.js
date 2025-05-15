@@ -2,10 +2,27 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+const os = require('os');
 
 const GITHUB_REPO = 'shinnlu/parallel-port-printer';
 const CHECK_INTERVAL = 1000 * 60 * 60; // 每小時檢查一次
-const UPDATE_RECORD_FILE = path.join(__dirname, 'update-record.json');
+
+// 設定更新記錄檔案路徑到 AppData 目錄
+const UPDATE_RECORD_FILE = path.join(
+  os.homedir(),
+  'AppData',
+  'Local',
+  'ParallelPortPrinter',
+  'update-record.json'
+);
+
+// 確保 AppData 目錄存在
+function ensureAppDataDir() {
+  const appDataDir = path.dirname(UPDATE_RECORD_FILE);
+  if (!fs.existsSync(appDataDir)) {
+    fs.mkdirSync(appDataDir, { recursive: true });
+  }
+}
 
 // 從 package.json 讀取當前版本號
 function getCurrentVersion() {
@@ -21,6 +38,7 @@ function getCurrentVersion() {
 // 讀取更新記錄
 function getUpdateRecord() {
   try {
+    ensureAppDataDir();
     if (fs.existsSync(UPDATE_RECORD_FILE)) {
       return JSON.parse(fs.readFileSync(UPDATE_RECORD_FILE, 'utf8'));
     }
@@ -37,6 +55,7 @@ function getUpdateRecord() {
 // 更新記錄
 function updateRecord(version) {
   try {
+    ensureAppDataDir();
     const record = getUpdateRecord();
     record.lastCheck = new Date().toISOString();
     record.lastDownloadedVersion = version;

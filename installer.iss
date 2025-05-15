@@ -1,5 +1,5 @@
 #define MyAppName "Parallel Port Printer"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "ParallelPort Printer"
 #define MyAppExeName "start-server.bat"
 
@@ -29,14 +29,13 @@ Source: "index.html"; DestDir: "{app}"; Flags: ignoreversion
 Source: "package.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "package-lock.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "check-update.js"; DestDir: "{app}"; Flags: ignoreversion
-Source: "version.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-server.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "server-dev.js"; DestDir: "{app}"; Flags: ignoreversion
 Source: ".env.example"; DestDir: "{app}"; Flags: ignoreversion
 Source: "install-service-x64.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "install-service-x86.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "nssm\*"; DestDir: "{app}\nssm"; Flags: ignoreversion recursesubdirs
-Source: "node_modules\*"; DestDir: "{app}\node_modules"; Flags: ignoreversion recursesubdirs
+Source: "node_modules\*"; DestDir: "{app}\node_modules"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Dirs]
 Name: "{app}\tmp"; Permissions: users-full
@@ -52,3 +51,21 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\tmp"
+
+[Code]
+var
+  ResultCode: Integer;
+
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    // 關閉正在運行的 node.exe 進程
+    Exec('taskkill', '/F /IM node.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
