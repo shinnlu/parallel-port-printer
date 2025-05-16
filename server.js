@@ -1,6 +1,7 @@
 const express = require('express');
 const { exec } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const iconv = require('iconv-lite');
 const updateChecker = require('./check-update');
@@ -80,11 +81,20 @@ app.get('/settings', (req, res) => {
 });
 
 // Save settings
+// 設定更新記錄檔案路徑到 AppData 目錄
+const envFilePath = path.join(
+  os.homedir(),
+  'AppData',
+  'Local',
+  'ParallelPortPrinter',
+  '.env'
+);
 app.post('/settings', validatePort, (req, res) => {
   const { port } = req.body;
   const envContent = `PRINTER_PORT=${port}`;
   try {
-    fs.writeFileSync('.env', envContent);
+    console.log('Writing to .env file:', envFilePath);
+    fs.writeFileSync(envFilePath, envContent, { encoding: 'utf8' });
     process.env.PRINTER_PORT = port;
     res.json({ message: 'Settings saved successfully' });
   } catch (error) {
