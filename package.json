@@ -1,6 +1,6 @@
 {
   "name": "parallel-port-printer",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A Node.js application for controlling parallel port printers",
   "main": "server.js",
   "license": "MIT",
