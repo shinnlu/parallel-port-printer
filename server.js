@@ -10,39 +10,21 @@ require('dotenv').config();
 const app = express();
 const LISTEN_PORT = process.env.LISTEN_PORT || 3000;
 
-// Path for tmp directory
-const TMP_DIR = path.join(__dirname, 'tmp');
-
-// Ensure tmp directory exists with proper permissions
-if (!fs.existsSync(TMP_DIR)) {
-  fs.mkdirSync(TMP_DIR, { mode: 0o755 });
-}
-
-// Function to get temporary filename
-const getTempFileName = () => {
-  return path.join(TMP_DIR, `print_${Date.now()}_${Math.random().toString(36).substring(7)}.bin`);
-};
-
-// Function to clean up temporary files
-const cleanupTempFiles = () => {
-  try {
-    const files = fs.readdirSync(TMP_DIR);
-    const now = Date.now();
-    files.forEach(file => {
-      const filePath = path.join(TMP_DIR, file);
-      // Delete files older than 1 hour
-      const stats = fs.statSync(filePath);
-      if (now - stats.mtimeMs > 3600000) {
-        fs.unlinkSync(filePath);
-      }
-    });
-  } catch (error) {
-    console.error('Error cleaning up temporary files:', error);
-  }
-};
-
-// Clean up temporary files every hour
-setInterval(cleanupTempFiles, 3600000);
+const escResetStyle = Buffer.from([0x1B, 0x45, 0x00, 0x1D, 0x21, 0x00]);
+const escInit = Buffer.from([0x1B, 0x40]); // 初始化
+const escBoldOn = Buffer.from([0x1B, 0x45, 0x01]); // 加粗開啟
+const escBoldOff = Buffer.from([0x1B, 0x45, 0x00]); // 加粗關閉
+const escFontA = Buffer.from([0x1B, 0x4D, 0x00]); // 字型 A
+const escFontB = Buffer.from([0x1B, 0x4D, 0x01]); // 字型 B
+const escDouble = Buffer.from([0x1D, 0x21, 0x11]); // 雙倍高寬
+const escDouble_off = Buffer.from([0x1D, 0x21, 0x00]); // 雙倍高寬關閉
+const escAlignRight = Buffer.from([0x1B, 0x61, 0x02]); // 置右對齊
+const escAlignJustify = Buffer.from([0x1B, 0x61, 0x03]); // 兩端對齊
+const escAlignCenter = Buffer.from([0x1B, 0x61, 0x01]); // 置中對齊
+const escAlignLeft = Buffer.from([0x1B, 0x61, 0x00]); // 左對齊
+const escCut = Buffer.from([0x1D, 0x56, 0x00]); // 全切紙
+const escCutPartial = Buffer.from([0x1D, 0x56, 0x01]); // 半切紙
+const escLineFeed = Buffer.from([0x0A]); // 換行
 
 // CORS configuration
 app.use((req, res, next) => {
@@ -153,7 +135,7 @@ function checkPrinterStatus(port) {
 app.post('/command', validateCommand, async (req, res) => {
   const { type, text, count, port } = req.body;
   const targetPort = (port === 'LPT2') ? 'LPT2' : 'LPT1';
-  const tempFile = getTempFileName();
+  const realPort = '\\\\.\\' + targetPort;
 
   // 檢查印表機狀態
   const isPrinterReady = await checkPrinterStatus(targetPort);
@@ -170,7 +152,7 @@ app.post('/command', validateCommand, async (req, res) => {
         break;
       case 'newline':
         const n = Math.max(1, Math.min(parseInt(count) || 1, 50));
-        buffer = Buffer.from('\n'.repeat(n), 'utf8');
+        buffer = Buffer.from('\n'.repeat(n));
         break;
       case 'cut':
         buffer = Buffer.from([0x1D, 0x56, 0x00]); // ESC/POS Full cut
@@ -181,62 +163,22 @@ app.post('/command', validateCommand, async (req, res) => {
     return res.status(500).json({ error: 'Failed to prepare print data' });
   }
 
-  const maxRetries = 3;
-  let currentTry = 0;
-
-  const tryWriteFile = () => {
-    try {
-      fs.writeFileSync(tempFile, buffer, { flag: 'w', mode: 0o600 });
-      return true;
-    } catch (error) {
-      console.error(`Write failed, attempt ${currentTry + 1}, error:`, error);
-      return false;
-    }
-  };
-
   const tryWrite = () => {
-    if (currentTry >= maxRetries) {
-      return res.status(500).json({ error: 'Unable to write temporary file, please try again later' });
-    }
-
-    if (tryWriteFile()) {
-      const command = `copy /B "${tempFile}" ${targetPort}`;
-      console.log(command);
-
-      // 設置超時
-      const timeout = setTimeout(() => {
-        try {
-          if (fs.existsSync(tempFile)) {
-            fs.unlinkSync(tempFile);
-          }
-        } catch (e) {
-          console.error('Error cleaning up temp file on timeout:', e);
-        }
-        res.status(504).json({ error: 'Print command timed out. Please check printer connection.' });
-      }, 5000); // 5 秒超時
-
-      exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
-        clearTimeout(timeout);
-        // Clean up temporary file
-        try {
-          if (fs.existsSync(tempFile)) {
-            fs.unlinkSync(tempFile);
-          }
-        } catch (e) {
-          console.error('Unable to delete temporary file:', e);
-        }
-
-        if (error) {
-          const errorMessage = iconv.decode(stderr, 'cp950');
-          console.error('Error message:', errorMessage);
-          return res.status(500).json({ error: 'Transmission failed: Please check LPT Port settings' });
-        }
-
+    // 將 buffer 直接寫入 LPT 埠
+    try {
+      const lptStream = fs.createWriteStream(realPort, { flags: 'w' });
+      lptStream.write(buffer);
+      lptStream.end();
+      lptStream.on('finish', () => {
         res.json({ message: `Sent to ${targetPort}, command type: ${type}` });
       });
-    } else {
-      currentTry++;
-      setTimeout(tryWrite, 100);
+      lptStream.on('error', (error) => {
+        console.error('Error writing to LPT port:', error);
+        res.status(500).json({ error: 'Transmission failed: Please check LPT Port settings' });
+      });
+    } catch (error) {
+      console.error('Error writing to LPT port:', error);
+      res.status(500).json({ error: 'Transmission failed: Please check LPT Port settings' });
     }
   };
 
@@ -248,41 +190,23 @@ app.post('/printer-status', async (req, res) => {
   const targetPort = port || process.env.PRINTER_PORT || 'LPT1';
 
   const buffer = Buffer.from([0x1D, 0x28, 0x41]); // ESC ( A 指令
-  const tempFile = getTempFileName();
 
   try {
-    fs.writeFileSync(tempFile, buffer, { flag: 'w', mode: 0o600 });
-    const command = `copy /B "${tempFile}" ${targetPort}`;
-    console.log(`Executing command: ${command}`);
-
-    exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
-      // Clean up temporary file
-      try {
-        if (fs.existsSync(tempFile)) {
-          fs.unlinkSync(tempFile);
-        }
-      } catch (e) {
-        console.error('Unable to delete temporary file:', e);
-      }
-
-      if (error) {
-        // Handle error
-        // if error contains "Error: Command failed:" then it's printer not ready
-        if (error.message.includes('Command failed:')) {
-          console.error('Printer not ready or command failed:', error);
-          return res.status(503).json({ status: 'error', message: 'Printer not ready or command failed' });
-        }
-        //console.error('Error executing command:', error);
-        const errorMessage = iconv.decode(stderr, 'cp950');
-        console.error('Error querying printer status:', errorMessage);
-        return res.status(500).json({ status: 'error', message: errorMessage });
-      }else{
-        // const outputMessage = iconv.decode(stdout, 'cp950');
-        // console.log('Printer status output:', outputMessage);
-        // res.json({ status: 'success', message: outputMessage });
+    try {
+      const lptStream = fs.createWriteStream(targetPort, { flags: 'w' });
+      lptStream.write(buffer);
+      lptStream.end();
+      lptStream.on('finish', () => {
         res.json({ status: 'success', message: 'Printer is ready' });
-      }
-    });
+      });
+      lptStream.on('error', (error) => {
+        console.error('Error writing to LPT port:', error);
+        res.status(500).json({ status: 'error', message: 'Printer not ready or command failed' });
+      });
+    } catch (error) {
+      console.error('Error writing to LPT port:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to prepare printer status query' });
+    }
   } catch (error) {
     console.error('Error preparing printer status query:', error);
     res.status(500).json({ status: 'error', message: 'Failed to prepare printer status query' });
@@ -301,9 +225,8 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(LISTEN_PORT, () => {
-  console.log(`Server running at: http://localhost:${LISTEN_PORT}`);
-  // Clean up old temporary files on startup
-  cleanupTempFiles();
+  console.log(`\x1b[31mParallel Port Printer Server\x1b[0m running at: http://localhost:${LISTEN_PORT}`);
+  console.log('\x1b[31mPlease don\'t close this window! If you want to stop the server, please use Ctrl+C.\x1b[0m');
   // Start update checker
   updateChecker.startUpdateCheck();
 });

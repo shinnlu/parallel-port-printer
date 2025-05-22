@@ -1,7 +1,7 @@
 {
   "name": "parallel-port-printer",
-  "version": "1.0.8",
-  "description": "A Node.js application for controlling parallel port printers",
+  "version": "1.0.9",
+  "description": "A Node.js application for using parallel port printers with ECS/POS commands.",
   "main": "server.js",
   "license": "MIT",
   "scripts": {
@@ -29,9 +29,7 @@
     "node": ">=14.0.0"
   },
   "watch": [
-    "server.js",
-    "routes/",
-    "config/"
+    "server.js"
   ],
   "ext": "js,json",
   "ignore": [
