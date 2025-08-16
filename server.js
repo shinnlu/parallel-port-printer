@@ -5,7 +5,18 @@ const os = require('os');
 const path = require('path');
 const iconv = require('iconv-lite');
 const updateChecker = require('./check-update');
-require('dotenv').config();
+
+// 設定 .env 檔案路徑到 AppData 目錄
+const envFilePath = path.join(
+  os.homedir(),
+  'AppData',
+  'Local',
+  'ParallelPortPrinter',
+  '.env'
+);
+
+// 載入 .env 檔案
+require('dotenv').config({ path: envFilePath });
 
 const app = express();
 const LISTEN_PORT = process.env.LISTEN_PORT || 3000;
@@ -63,19 +74,10 @@ app.get('/settings', (req, res) => {
 });
 
 // Save settings
-// 設定更新記錄檔案路徑到 AppData 目錄
-const envFilePath = path.join(
-  os.homedir(),
-  'AppData',
-  'Local',
-  'ParallelPortPrinter',
-  '.env'
-);
 app.post('/settings', validatePort, (req, res) => {
   const { port } = req.body;
   const envContent = `PRINTER_PORT=${port}`;
   try {
-    console.log('Writing to .env file:', envFilePath);
     fs.writeFileSync(envFilePath, envContent, { encoding: 'utf8' });
     process.env.PRINTER_PORT = port;
     res.json({ message: 'Settings saved successfully' });
@@ -117,7 +119,6 @@ const validateCommand = (req, res, next) => {
 function checkPrinterStatus(port) {
   return new Promise((resolve) => {
     const command = `mode ${port}`;
-    console.log(command);
     exec(command, { encoding: 'buffer' }, (error, stdout, stderr) => {
       if (error) {
         console.error('Error querying printer status:', error);
@@ -134,13 +135,12 @@ function checkPrinterStatus(port) {
 
 app.post('/command', validateCommand, async (req, res) => {
   const { type, text, count, port } = req.body;
-  const targetPort = (port === 'LPT2') ? 'LPT2' : 'LPT1';
+  const targetPort = port || process.env.PRINTER_PORT || 'LPT1';
   const realPort = '\\\\.\\' + targetPort;
-
   // 檢查印表機狀態
   const isPrinterReady = await checkPrinterStatus(targetPort);
   if (!isPrinterReady) {
-    return res.status(503).json({ error: 'Printer is not ready. Please check if the printer is turned on and connected.' });
+    return res.json({ status: 'error', message: 'Printer is not ready. Please check if the printer is turned on and connected.' });
   }
 
   let buffer;
@@ -188,29 +188,11 @@ app.post('/command', validateCommand, async (req, res) => {
 app.post('/printer-status', async (req, res) => {
   const { port } = req.body;
   const targetPort = port || process.env.PRINTER_PORT || 'LPT1';
-
-  const buffer = Buffer.from([0x1D, 0x28, 0x41]); // ESC ( A 指令
-
-  try {
-    try {
-      const lptStream = fs.createWriteStream(targetPort, { flags: 'w' });
-      lptStream.write(buffer);
-      lptStream.end();
-      lptStream.on('finish', () => {
-        res.json({ status: 'success', message: 'Printer is ready' });
-      });
-      lptStream.on('error', (error) => {
-        console.error('Error writing to LPT port:', error);
-        res.status(500).json({ status: 'error', message: 'Printer not ready or command failed' });
-      });
-    } catch (error) {
-      console.error('Error writing to LPT port:', error);
-      res.status(500).json({ status: 'error', message: 'Failed to prepare printer status query' });
-    }
-  } catch (error) {
-    console.error('Error preparing printer status query:', error);
-    res.status(500).json({ status: 'error', message: 'Failed to prepare printer status query' });
+  const isPrinterReady = await checkPrinterStatus(targetPort);
+  if (!isPrinterReady) {
+    return res.json({ status: 'error', message: 'Printer is not ready. Please check if the printer is turned on and connected.' });
   }
+  res.json({ status: 'success', message: 'Printer is ready' });
 });
 
 // 確保所有其他路由都返回 index.html
@@ -226,7 +208,8 @@ app.use((err, req, res, next) => {
 
 app.listen(LISTEN_PORT, () => {
   console.log(`\x1b[31mParallel Port Printer Server\x1b[0m running at: http://localhost:${LISTEN_PORT}`);
-  console.log('\x1b[31mPlease don\'t close this window! If you want to stop the server, please use Ctrl+C.\x1b[0m');
+  console.log('\x1b[33m請不要關閉這個視窗! 如果您想停止伺服器，請使用 Ctrl+C。\x1b[0m');
+  console.log(`\x1b[32mLoaded PRINTER_PORT from .env: ${process.env.PRINTER_PORT}\x1b[0m`);
   // Start update checker
   updateChecker.startUpdateCheck();
 });
