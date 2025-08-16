@@ -1,6 +1,6 @@
 {
   "name": "parallel-port-printer",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "A Node.js application for using parallel port printers with ECS/POS commands.",
   "main": "server.js",
   "license": "MIT",
