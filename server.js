@@ -207,9 +207,26 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(LISTEN_PORT, () => {
-  console.log(`\x1b[31mParallel Port Printer Server\x1b[0m running at: http://localhost:${LISTEN_PORT}`);
+  const networkInterfaces = os.networkInterfaces();
+  let localIP = 'localhost';
+
+  // Find the first non-internal IPv4 address
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    for (const iface of interfaces) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIP = iface.address;
+        break;
+      }
+    }
+    if (localIP !== 'localhost') break;
+  }
+
+  console.log(`\x1b[31mParallel Port Printer Server\x1b[0m running at:`);
+  console.log(`  Local:   http://localhost:${LISTEN_PORT}`);
+  console.log(`  Network: http://${localIP}:${LISTEN_PORT}`);
+  console.log(`  \x1b[32mPrinter Port: ${process.env.PRINTER_PORT}\x1b[0m`);
   console.log('\x1b[33m請不要關閉這個視窗! 如果您想停止伺服器，請使用 Ctrl+C。\x1b[0m');
-  console.log(`\x1b[32mLoaded PRINTER_PORT from .env: ${process.env.PRINTER_PORT}\x1b[0m`);
   // Start update checker
   updateChecker.startUpdateCheck();
 });
